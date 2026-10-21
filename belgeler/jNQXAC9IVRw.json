@@ -1,0 +1,45 @@
+{
+  "arac": "video-denetci",
+  "surum": "1.0",
+  "video": {
+    "id": "jNQXAC9IVRw",
+    "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "baslik": "Me at the zoo",
+    "kanal": "",
+    "shorts": false
+  },
+  "izleme": {
+    "zaman": "2026-10-21T19:47:53+00:00",
+    "mod": "örneklem",
+    "oynanan_saniye": 19.02,
+    "video_saniye": 19.02,
+    "cozunurluk": "320x240",
+    "sayfa": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "kare_sayisi": 3
+  },
+  "kareler": [
+    {
+      "dosya": "kareler/kare_001.jpg",
+      "sha256": "ce6d17a91e20147ad13047a2b4689748a0e0580e46c5892d2f9f6e8f41a275e3",
+      "boyut": 61852,
+      "yakalama": "2026-10-21T19:47:52+00:00"
+    },
+    {
+      "dosya": "kareler/kare_002.jpg",
+      "sha256": "c96b019d40a48ee660062c7ea2e0576b7ca776ee428d735ac201c81470a8f001",
+      "boyut": 67424,
+      "yakalama": "2026-10-21T19:47:52+00:00"
+    },
+    {
+      "dosya": "kareler/kare_003.jpg",
+      "sha256": "048d93069a3eaf34fc86d3d2e3705b572a645d91d722449bf69026dd6d2482b7",
+      "boyut": 59425,
+      "yakalama": "2026-10-21T19:47:53+00:00"
+    }
+  ],
+  "transkript": {
+    "var": true,
+    "sha256": "083a5f4a06797b6eca382a74707c681a5094f25129bc8447dd0c3557f24ac0cf"
+  },
+  "belge_ozeti": "df3ee0f5c8040e743a78faf2f98b72088cddaaa2a55c289710240bcda60b412d"
+}
