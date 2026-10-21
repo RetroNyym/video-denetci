@@ -1,0 +1,50 @@
+{
+  "arac": "video-denetci",
+  "surum": "1.0",
+  "video": {
+    "id": "aqz-KE-bpKQ",
+    "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+    "baslik": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+    "kanal": "",
+    "shorts": false
+  },
+  "izleme": {
+    "zaman": "2026-10-21T20:38:55+00:00",
+    "mod": "örneklem",
+    "oynanan_saniye": 634.6,
+    "video_saniye": 634.6,
+    "cozunurluk": "854x480",
+    "sayfa": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+    "kare_sayisi": 3,
+    "sayac": {
+      "oncesi": 23454887,
+      "sonrasi": 23454887,
+      "fark": 0
+    }
+  },
+  "kareler": [
+    {
+      "dosya": "kareler/kare_001.jpg",
+      "sha256": "4e9e8d7b5203380d989b854fbb0ae1fea3505529868041e8a0f1a0c31d4a0301",
+      "boyut": 24201,
+      "yakalama": "2026-10-21T20:38:18+00:00"
+    },
+    {
+      "dosya": "kareler/kare_002.jpg",
+      "sha256": "9519d2e8dbc300bd29aae4048ef1cafbfdf5eea4092998365f6db648af9cf9f5",
+      "boyut": 19688,
+      "yakalama": "2026-10-21T20:38:33+00:00"
+    },
+    {
+      "dosya": "kareler/kare_003.jpg",
+      "sha256": "f0d622ed89c1f15a58df76bdf22a5e3b23be20d7008abc180a80f62f883434b6",
+      "boyut": 14398,
+      "yakalama": "2026-10-21T20:38:49+00:00"
+    }
+  ],
+  "transkript": {
+    "var": false,
+    "sha256": ""
+  },
+  "belge_ozeti": "21941d254242f69df7dc5fc2fba74ec860f76424d25774b41c46ce34700506c2"
+}
