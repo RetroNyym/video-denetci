@@ -8,6 +8,7 @@ Komutlar:
   python -m denetci watch                      # listelenenleri oynatıp kare yakalar
   python -m denetci verify                     # izleme belgelerini doğrula (kanıt)
   python -m denetci anchor                     # belgeleri GitHub'a çapala (3. taraf zaman damgası)
+  python -m denetci view <video_id|URL>        # YouTube sayacını şu an oku
   python -m denetci analyze                    # başlık↔içerik + gerçeklik denetimi
   python -m denetci report                     # HTML rapor
   python -m denetci run @kanal                 # hepsi tek komutta
@@ -18,7 +19,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
+import time
 from pathlib import Path
 
 from . import analyzer, collector, config, receipt, report, store, watchpage, watcher
@@ -108,6 +111,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     for i, row in enumerate(pending, 1):
         tag = "Shorts" if row["is_short"] else "video"
         print(f"  ({i}/{len(pending)}) [{tag}] {(row['title'] or row['id'])[:60]}")
+        sayac_on = watchpage.view_count(row["id"])   # izlemeden önce sayaç (okuma)
         try:
             res = watcher.watch_video(
                 row,
@@ -135,9 +139,16 @@ def cmd_watch(args: argparse.Namespace) -> int:
             error=res.get("error", ""),
         )
         print(f"    {len(res['frames'])} kare · {res.get('duration', 0)} sn · {res['mode']}")
+        res["sayac_oncesi"] = sayac_on
+        if sayac_on is not None:
+            time.sleep(5)   # YouTube sayacı anında güncellenmeyebilir; kısa bekleme
+            res["sayac_sonrasi"] = watchpage.view_count(row["id"])
         belge = receipt.create(row, res)
         if belge:
             print(f"    izleme belgesi: izleme_belgesi.json · özet {belge['ozet'][:16]}…")
+        if isinstance(res.get("sayac_oncesi"), int) and isinstance(res.get("sayac_sonrasi"), int):
+            print(f"    YouTube sayacı: {res['sayac_oncesi']} → {res['sayac_sonrasi']} "
+                  f"({res['sayac_sonrasi'] - res['sayac_oncesi']:+d})")
         ok += 1
     print(f"[watch] tamam: {ok} izlendi, {err} hata.")
     return 0 if ok or not err else 4
@@ -215,6 +226,22 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         ok += 1
     print(f"[analyze] tamam: {ok} denetlendi, {err} hata.")
     return 0 if ok or not err else 4
+
+
+def cmd_view(args: argparse.Namespace) -> int:
+    """Videonun şu anki izlenme sayısını okur (belgeye dokunmaz, yalnız bilgi)."""
+    raw = args.target.strip()
+    m = re.search(r"(?:v=|shorts/)([\w-]{11})", raw)
+    vid = m.group(1) if m else raw
+    if len(vid) != 11 or not re.fullmatch(r"[\w-]{11}", vid):
+        print("Video ID ya da video URL'si verin (örn. jNQXAC9IVRw).", file=sys.stderr)
+        return 3
+    count = watchpage.view_count(vid)
+    if count is None:
+        print(f"{vid}: sayaç okunamadı (video gizli/engelli olabilir).", file=sys.stderr)
+        return 2
+    print(f"{vid}: YouTube sayacı şu anda {count}".replace(",", "."))
+    return 0
 
 
 def cmd_anchor(args: argparse.Namespace) -> int:
@@ -377,6 +404,10 @@ def main(argv: list[str] | None = None) -> int:
                       help="daha önce denetlenmiş/hatalı videoları da yeniden denetle")
     _add_vlm_args(p_an)
     p_an.set_defaults(func=cmd_analyze)
+
+    p_view = sub.add_parser("view", help="YouTube izlenme sayacını şu an oku")
+    p_view.add_argument("target", help="video ID ya da video URL'si")
+    p_view.set_defaults(func=cmd_view)
 
     p_anchor = sub.add_parser(
         "anchor", help="belgeleri GitHub'a çapala (üçüncü taraf zaman damgası)"

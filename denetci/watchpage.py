@@ -393,6 +393,25 @@ def search_channels(query: str, limit: int = 8) -> list[dict]:
 
 
 # --------------------------------------------------------------------------
+# izlenme sayacı okuma (yalnızca OKUMA — sayaç üretimi/şişirme yok)
+# --------------------------------------------------------------------------
+
+def view_count(video_id: str) -> int | None:
+    """Sayfanın gösterdiği **tam** izlenme sayısını okur; alınamazsa None.
+
+    `ytInitialPlayerResponse.videoDetails.viewCount` tam sayıdır; arayüzdeki
+    "1,2 mn" gibi yuvarlanmış metin kullanılmaz. Ağ/parse hatasında None
+    döner — çağrı yapan izlemeyi asla durdurmaz.
+    """
+    try:
+        html = _get(f"https://www.youtube.com/watch?v={video_id}")
+    except WatchError:
+        return None
+    match = re.search(r'"viewCount"\s*:\s*"(\d+)"', html)
+    return int(match.group(1)) if match else None
+
+
+# --------------------------------------------------------------------------
 
 def fetch(video_id: str, lang: str = "tr") -> dict:
     """Başlık + transkript + açıklama + süre; altyazı yoksa transkript boş döner.

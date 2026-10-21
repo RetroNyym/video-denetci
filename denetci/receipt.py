@@ -70,6 +70,13 @@ def create(row: dict, res: dict) -> dict | None:
     tp = folder / "transkript.txt"
     tp_ok = tp.exists() and tp.stat().st_size > 0
 
+    sayac_on = res.get("sayac_oncesi")
+    sayac_off = res.get("sayac_sonrasi")
+    if not isinstance(sayac_on, int):
+        sayac_on = None
+    if not isinstance(sayac_off, int):
+        sayac_off = None
+
     doc = {
         "arac": "video-denetci",
         "surum": __version__,
@@ -88,6 +95,17 @@ def create(row: dict, res: dict) -> dict | None:
             "cozunurluk": res.get("resolution") or "",
             "sayfa": res.get("url_used") or "",
             "kare_sayisi": len(kareler),
+            # YouTube'un kendi sayacı: izlemeden önce/sonra okunan tam sayı.
+            # Araç yalnızca okur; artışı hedeflemez/optimizasyon yapmaz.
+            "sayac": {
+                "oncesi": sayac_on,
+                "sonrasi": sayac_off,
+                "fark": (
+                    sayac_off - sayac_on
+                    if sayac_on is not None and sayac_off is not None
+                    else None
+                ),
+            },
         },
         "kareler": kareler,
         "transkript": {
@@ -155,6 +173,10 @@ def verify(row: dict) -> dict:
         f"{len(doc.get('kareler') or [])} kare doğrulandı · "
         f"{iz.get('oynanan_saniye', 0)} sn oynandı · mod {iz.get('mod', '?')}"
     )
+    sayac = iz.get("sayac") or {}
+    on, off = sayac.get("oncesi"), sayac.get("sonrasi")
+    if isinstance(on, int) and isinstance(off, int):
+        out["not"] += f" · YouTube sayacı {on} → {off} ({off - on:+d})"
     return out
 
 

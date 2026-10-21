@@ -227,10 +227,17 @@ def _belge_html(vid: str) -> str:
         )
     iz = doc.get("izleme") or {}
     oz = str(doc.get("belge_ozeti") or "")[:16]
+    sayac = iz.get("sayac") or {}
+    on, off = sayac.get("oncesi"), sayac.get("sonrasi")
+    sayac_txt = ""
+    if isinstance(on, int) and isinstance(off, int):
+        sayac_txt = (
+            f" · YouTube sayacı {on} → {off} ({off - on:+d})"
+        )
     return (
         f"<div class='meta'>🔎 izleme belgesi · {html.escape(str(iz.get('zaman') or '?'))} · "
-        f"{iz.get('oynanan_saniye', 0)} sn oynandı ({html.escape(str(iz.get('mod') or '?'))}) · "
-        f"özet <code>{html.escape(oz)}…</code> · "
+        f"{iz.get('oynanan_saniye', 0)} sn oynandı ({html.escape(str(iz.get('mod') or '?'))})"
+        f"{sayac_txt} · özet <code>{html.escape(oz)}…</code> · "
         f"<code>denetci verify</code> ile doğrulanabilir</div>"
     )
 

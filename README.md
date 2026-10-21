@@ -160,6 +160,31 @@ python -m denetci anchor --video ID   # tek belge
 
 Panelde **"📌 GitHub'a çapa"** butonu aynı işi yapar.
 
+### YouTube sayaç kanıtı (okuma, üretme değil)
+
+Her izlemede YouTube'un kendi sayacı **izlemeden önce ve sonra** okunup
+belgeye yazılır:
+
+```
+izleme: { zaman: 2026-10-21T20:22:13Z, ..., sayac: { oncesi: 1234567,
+          sonrasi: 1234568, fark: 1 } }
+```
+
+Böylece iddia iki ayaklı olur: *"şu saatte bot izledi — kanıt belge +
+GitHub çapası; bak YouTube sayacı da 1.234.567 → 1.234.568."*
+Belgede `verify` çıktısında, rapor kartında ve panelde (📊 rozeti) görünür.
+Sayacı sonradan tekrar okumak için: `python -m denetci view <video_id|URL>`.
+
+**Dürüst sınırlar:**
+
+- Araç sayacı **okur, üretmez/şişirmez**; video başına tek denetim izlemesi
+  yapılır, hedef/gündeme göre artırım yoktur.
+- Sayım tamamen **YouTube'nin kararındadır**: otomasyon seansı sayılmayabilir
+  ya da güncelleme gecikebilir → `fark: 0` çıkabilir; bu da dürüstçe kayda
+  geçer. YouTube sayıları "geçersiz trafik" filtrelerinde **aşağı** çekebilir.
+- Kanıtın kalıcılığı sayaçta değil, **belge + GitHub çapasında**dır;
+  sayaç yalnızca ek teyittir.
+
 Not: YouTube izlenme sayacı bu kanıtın yerine geçmez — sayaç, periyodik
 "geçersiz trafik" filtrelerinde **aşağı** çekilir; bot/otomasyon kaynaklı
 izlemeler tam olarak en çok temizlenen türdür. Kalıcı kanıt, kamuya açık ve

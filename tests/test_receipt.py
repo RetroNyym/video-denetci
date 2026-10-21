@@ -93,3 +93,26 @@ def test_stage_anchor_kopyalar(tmp_path, monkeypatch):
     assert kopya.read_bytes() == (folder / receipt.RECEIPT_NAME).read_bytes()
     # belgesiz kayıt kopyalanmaz
     assert receipt.stage_anchor([{"id": "yokki"}], dest) == []
+
+
+def test_sayac_belgeye_yazilir(tmp_path, monkeypatch):
+    row, res, folder = _make_video(tmp_path, monkeypatch)
+    res["sayac_oncesi"] = 1000
+    res["sayac_sonrasi"] = 1001
+    receipt.create(row, res)
+    doc = json.loads((folder / receipt.RECEIPT_NAME).read_text(encoding="utf-8"))
+    sayac = doc["izleme"]["sayac"]
+    assert sayac == {"oncesi": 1000, "sonrasi": 1001, "fark": 1}
+    r = receipt.verify(row)
+    assert r["durum"] == "ok"
+    assert "YouTube sayacı 1000 → 1001 (+1)" in r["not"]
+
+
+def test_sayac_okunamazsa_null_kalir(tmp_path, monkeypatch):
+    row, res, folder = _make_video(tmp_path, monkeypatch)
+    receipt.create(row, res)   # res içinde sayac yok
+    doc = json.loads((folder / receipt.RECEIPT_NAME).read_text(encoding="utf-8"))
+    assert doc["izleme"]["sayac"] == {"oncesi": None, "sonrasi": None, "fark": None}
+    r = receipt.verify(row)
+    assert r["durum"] == "ok"
+    assert "sayacı" not in r["not"]

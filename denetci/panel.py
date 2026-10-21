@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -189,6 +190,7 @@ def _do_watch(st: dict) -> None:
     for i, row in enumerate(pending, 1):
         tag = "Shorts" if row["is_short"] else "video"
         JOB.log(f"({i}/{len(pending)}) [{tag}] {(row['title'] or row['id'])[:60]}")
+        sayac_on = watchpage.view_count(row["id"])   # izlemeden önce sayaç (okuma)
         try:
             res = watcher.watch_video(
                 row, headless=headless, realtime=realtime, frames=frames
@@ -213,9 +215,16 @@ def _do_watch(st: dict) -> None:
             error=res.get("error", ""),
         )
         JOB.log(f"  {len(res['frames'])} kare · {res.get('duration', 0)} sn · {res['mode']}")
+        res["sayac_oncesi"] = sayac_on
+        if sayac_on is not None:
+            time.sleep(5)   # sayaç anında güncellenmeyebilir; kısa bekleme
+            res["sayac_sonrasi"] = watchpage.view_count(row["id"])
         belge = receipt.create(row, res)
         if belge:
             JOB.log(f"  izleme belgesi: izleme_belgesi.json · özet {belge['ozet'][:16]}…")
+        if isinstance(res.get("sayac_oncesi"), int) and isinstance(res.get("sayac_sonrasi"), int):
+            JOB.log(f"  YouTube sayacı: {res['sayac_oncesi']} → {res['sayac_sonrasi']} "
+                    f"({res['sayac_sonrasi'] - res['sayac_oncesi']:+d})")
         ok += 1
     JOB.log(f"İzleme bitti: {ok} başarılı, {err} hata.")
 
@@ -395,14 +404,21 @@ def _videos_payload() -> list[dict]:
         a = r.get("analysis") or {}
         s = (a.get("skorlar") or {}) if a else {}
         belge = ""
+        sayac = ""
         bp = config.OUT / r["id"] / receipt.RECEIPT_NAME
         if bp.exists():
             try:
-                belge = str(
-                    (json.loads(bp.read_text(encoding="utf-8")) or {}).get("belge_ozeti") or ""
-                )[:16]
+                doc = json.loads(bp.read_text(encoding="utf-8"))
             except (OSError, ValueError):
+                doc = None
+            if not isinstance(doc, dict):
                 belge = "bozuk"
+            else:
+                belge = str(doc.get("belge_ozeti") or "")[:16]
+                sc = (doc.get("izleme") or {}).get("sayac") or {}
+                if isinstance(sc.get("oncesi"), int) and isinstance(sc.get("sonrasi"), int):
+                    sayac = (f"{sc['oncesi']} → {sc['sonrasi']} "
+                             f"({sc['sonrasi'] - sc['oncesi']:+d})")
         out.append(
             {
                 "id": r["id"],
@@ -421,6 +437,7 @@ def _videos_payload() -> list[dict]:
                 "ozet": (a.get("ozet", "") if a else ""),
                 "vlm_hata": (a.get("vlm_hata", "") if a else ""),
                 "belge": belge,
+                "sayac": sayac,
             }
         )
 
@@ -763,6 +780,7 @@ function renderRows(rows){
     const status='<span class="st">'+(ST[v.status]||v.status||'')+
       (v.frames?' · '+v.frames+' kare':'')+
       (v.transcript_lang?' · '+esc(v.transcript_lang):'')+
+      (v.sayac?' · 📊 '+esc(v.sayac):'')+
       (v.belge?' · 🔎 '+esc(v.belge):'')+'</span>'+
       (v.error?'<div class="st bad">'+esc(v.error)+'</div>':'');
     const verdict=v.karar?('<span class="verdict '+verdictClass(v.karar)+'">'+esc(v.karar)+'</span>')
