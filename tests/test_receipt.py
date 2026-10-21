@@ -79,3 +79,17 @@ def test_kare_silince_bozuk(tmp_path, monkeypatch):
     r = receipt.verify(row)
     assert r["durum"] == "bozuk"
     assert "eksik" in r["not"]
+
+
+def test_stage_anchor_kopyalar(tmp_path, monkeypatch):
+    row, res, folder = _make_video(tmp_path, monkeypatch)
+    receipt.create(row, res)
+    dest = tmp_path / "belgeler"
+    copied = receipt.stage_anchor([row], dest)
+    assert copied == [row["id"]]
+    kopya = dest / f"{row['id']}.json"
+    assert kopya.exists()
+    # kopya, kaynak belgeyle bayt bayt aynı olmalı (çapa = birebir kayıt)
+    assert kopya.read_bytes() == (folder / receipt.RECEIPT_NAME).read_bytes()
+    # belgesiz kayıt kopyalanmaz
+    assert receipt.stage_anchor([{"id": "yokki"}], dest) == []

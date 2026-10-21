@@ -142,6 +142,29 @@ Raporun her kartında belge özeti+zamanı, panelde 🔎 rozeti, panelde ayrıca
 **"Belge doğrula"** butonu vardır. Belge, aracın kendi yerel kaydıdır;
 YouTube'da izlenme/etkileşim metriği üretmez/şişirmez.
 
+### GitHub çapası (üçüncü taraf zaman damgası)
+
+Yerel belge tek başına tartışılabilir ("program değiştirilebilir"). Bunun
+için belge bir **commit ile GitHub'a çapalanır**: commit zamanı GitHub
+tarafından damgalanır, kamuya açık depo geçmişinde tutulur. Doğrulama iki
+katmanlı olur:
+
+1. `verify` — belge + kare özetlerinin yerel bütünlüğü (SHA-256)
+2. depo geçmişi — belgenin **o tarihte var olduğunun** üçüncü taraf kanıtı
+   (`belgeler/<video_id>.json`, commit zaman damgasıyla)
+
+```bash
+python -m denetci anchor              # tüm belgeleri çapala (commit + push)
+python -m denetci anchor --video ID   # tek belge
+```
+
+Panelde **"📌 GitHub'a çapa"** butonu aynı işi yapar.
+
+Not: YouTube izlenme sayacı bu kanıtın yerine geçmez — sayaç, periyodik
+"geçersiz trafik" filtrelerinde **aşağı** çekilir; bot/otomasyon kaynaklı
+izlemeler tam olarak en çok temizlenen türdür. Kalıcı kanıt, kamuya açık ve
+zaman damgalı kayıttır.
+
 ## Çıktılar
 
 ```

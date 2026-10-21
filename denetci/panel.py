@@ -46,6 +46,7 @@ _PHASE_NAMES = {
     "scan": "tarama",
     "watch": "izleme",
     "verify": "belge doğrulama",
+    "anchor": "çapalama",
     "analyze": "denetim",
     "report": "rapor",
     "run": "tam akış",
@@ -238,6 +239,21 @@ def _do_verify() -> None:
     JOB.log(f"Belge doğrulama: {ok} doğrulandı, {n_bozuk} bozuk, {n_yok} belgesiz.")
 
 
+def _do_anchor() -> None:
+    rows = store.rows(("watched", "analyzed", "error"))
+    dest = config.ROOT / receipt.ANCHOR_DIR_NAME
+    copied = receipt.stage_anchor(rows, dest)
+    if not copied:
+        JOB.log("Çapalanacak belge yok. Önce `İzleme` çalıştırın.")
+        return
+    JOB.log(f"{len(copied)} belge → belgeler/ (git commit + push)")
+    durum, mesaj = receipt.anchor_to_git(dest, copied)
+    if durum == "hata":
+        JOB.log(f"HATA: {mesaj}")
+        raise RuntimeError(mesaj)
+    JOB.log(mesaj)
+
+
 def _do_analyze(st: dict) -> None:
     statuses: tuple[str, ...] = ("watched",)
     if st.get("retry"):
@@ -345,6 +361,8 @@ def _runner(action: str, st: dict) -> bool:
                 _do_report()
             if action == "verify":
                 _do_verify()
+            if action == "anchor":
+                _do_anchor()
             JOB.log("— tamamlandı —")
             JOB.end("bitti")
         except Exception as exc:  # noqa: BLE001 — iş hatası arayüzü düşürmez
@@ -628,6 +646,7 @@ PANEL_HTML = """<!doctype html>
       <button data-run="analyze">▶ Denetim</button>
       <button data-run="report">📄 Rapor</button>
       <button data-run="verify">🔎 Belge doğrula</button>
+      <button data-run="anchor">📌 GitHub'a çapa</button>
       <button class="warn" data-run="run">⚡ Hepsini çalıştır</button>
       <a href="/reports/latest.html" target="_blank"><button id="openReport" disabled>Raporu aç</button></a>
     </div>

@@ -7,6 +7,7 @@ Komutlar:
   python -m denetci scan @kanal                # tüm videolar + Shorts listelenir
   python -m denetci watch                      # listelenenleri oynatıp kare yakalar
   python -m denetci verify                     # izleme belgelerini doğrula (kanıt)
+  python -m denetci anchor                     # belgeleri GitHub'a çapala (3. taraf zaman damgası)
   python -m denetci analyze                    # başlık↔içerik + gerçeklik denetimi
   python -m denetci report                     # HTML rapor
   python -m denetci run @kanal                 # hepsi tek komutta
@@ -216,6 +217,29 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0 if ok or not err else 4
 
 
+def cmd_anchor(args: argparse.Namespace) -> int:
+    """Belgeleri depoya çapalar: GitHub commit zamanı üçüncü taraf zaman damgasıdır."""
+    config.ensure_dirs()
+    rows = store.rows(("watched", "analyzed", "error"))
+    if args.video:
+        rows = [r for r in rows if r["id"] == args.video]
+        if not rows:
+            print(f"Kayıt yok: {args.video}")
+            return 3
+    dest = config.ROOT / receipt.ANCHOR_DIR_NAME
+    copied = receipt.stage_anchor(rows, dest)
+    if not copied:
+        print("Çapalanacak belge yok. Önce `watch` çalıştırın.")
+        return 0
+    print(f"{len(copied)} belge → {dest}/")
+    durum, mesaj = receipt.anchor_to_git(dest, copied)
+    if durum == "hata":
+        print(f"HATA: {mesaj}", file=sys.stderr)
+        return 2
+    print(mesaj)
+    return 0
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     """İzleme belgelerini doğrular (belge özeti + kare dosyalarının SHA-256'ı)."""
     config.ensure_dirs()
@@ -353,6 +377,12 @@ def main(argv: list[str] | None = None) -> int:
                       help="daha önce denetlenmiş/hatalı videoları da yeniden denetle")
     _add_vlm_args(p_an)
     p_an.set_defaults(func=cmd_analyze)
+
+    p_anchor = sub.add_parser(
+        "anchor", help="belgeleri GitHub'a çapala (üçüncü taraf zaman damgası)"
+    )
+    p_anchor.add_argument("--video", help="yalnızca tek video belgesini çapala")
+    p_anchor.set_defaults(func=cmd_anchor)
 
     p_ver = sub.add_parser("verify", help="izleme belgelerini doğrula (kanıt bütünlüğü)")
     p_ver.add_argument("--video", help="yalnızca tek video kimliğini doğrula")

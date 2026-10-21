@@ -21,12 +21,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__, config
 
 RECEIPT_NAME = "izleme_belgesi.json"
+ANCHOR_DIR_NAME = "belgeler"
 
 
 def _sha256_file(path: Path) -> str:
@@ -158,3 +160,49 @@ def verify(row: dict) -> dict:
 
 def verify_all(rows: list[dict]) -> list[dict]:
     return [verify(r) for r in rows]
+
+
+# ------------------------------------------------------------- GitHub çapası
+def stage_anchor(rows: list[dict], dest: Path) -> list[str]:
+    """Mevcut belgeleri çapa klasörüne kopyalar; kopyalanan kimlikleri döner."""
+    copied: list[str] = []
+    dest.mkdir(parents=True, exist_ok=True)
+    for row in rows:
+        src = config.OUT / row["id"] / RECEIPT_NAME
+        if not src.exists():
+            continue
+        (dest / f"{row['id']}.json").write_bytes(src.read_bytes())
+        copied.append(row["id"])
+    return copied
+
+
+def anchor_to_git(dest: Path, ids: list[str]) -> tuple[str, str]:
+    """Çapa klasörünü commit'leyip push eder → (durum, mesaj).
+
+    durum: "ok" (GitHub'a çapalandı) · "temiz" (zaten çapalı) · "hata"
+    GitHub'ın commit zaman damgası, belgeye üçüncü taraf güvenilirliği verir;
+    depo geçmişi kamuya açıktır ve sonradan oynanamaz (rewrite gerekir).
+    """
+    git = ["git", "-C", str(dest.parent)]
+    staged = subprocess.run(
+        git + ["add", "-A", dest.name], capture_output=True, text=True
+    )
+    if staged.returncode != 0:
+        return "hata", f"git add başarısız: {staged.stderr.strip()}"
+    check = subprocess.run(
+        git + ["diff", "--cached", "--name-only"], capture_output=True, text=True
+    )
+    if not check.stdout.strip():
+        return "temiz", "belgeler zaten çapalı (GitHub deposunda mevcut)"
+    msg = "belge çapa: " + ", ".join(ids[:5]) + ("…" if len(ids) > 5 else "")
+    commit = subprocess.run(
+        git + ["commit", "-m", msg], capture_output=True, text=True
+    )
+    if commit.returncode != 0:
+        return "hata", f"commit başarısız: {commit.stderr.strip()}"
+    push = subprocess.run(git + ["push"], capture_output=True, text=True)
+    if push.returncode != 0:
+        return "hata", f"push başarısız: {push.stderr.strip()} (commit yerelde duruyor)"
+    return "ok", (
+        f"Çapalandı: {msg} — GitHub commit zamanı üçüncü taraf zaman damgasıdır"
+    )
