@@ -6,6 +6,7 @@ Komutlar:
   python -m denetci search "mkbhd"             # YouTube'da kanal ara (ad/URL al)
   python -m denetci scan @kanal                # tüm videolar + Shorts listelenir
   python -m denetci watch                      # listelenenleri oynatıp kare yakalar
+  python -m denetci verify                     # izleme belgelerini doğrula (kanıt)
   python -m denetci analyze                    # başlık↔içerik + gerçeklik denetimi
   python -m denetci report                     # HTML rapor
   python -m denetci run @kanal                 # hepsi tek komutta
@@ -19,7 +20,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import analyzer, collector, config, report, store, watchpage, watcher
+from . import analyzer, collector, config, receipt, report, store, watchpage, watcher
 
 
 # ---------------------------------------------------------------- yardımcılar
@@ -133,6 +134,9 @@ def cmd_watch(args: argparse.Namespace) -> int:
             error=res.get("error", ""),
         )
         print(f"    {len(res['frames'])} kare · {res.get('duration', 0)} sn · {res['mode']}")
+        belge = receipt.create(row, res)
+        if belge:
+            print(f"    izleme belgesi: izleme_belgesi.json · özet {belge['ozet'][:16]}…")
         ok += 1
     print(f"[watch] tamam: {ok} izlendi, {err} hata.")
     return 0 if ok or not err else 4
@@ -210,6 +214,31 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         ok += 1
     print(f"[analyze] tamam: {ok} denetlendi, {err} hata.")
     return 0 if ok or not err else 4
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    """İzleme belgelerini doğrular (belge özeti + kare dosyalarının SHA-256'ı)."""
+    config.ensure_dirs()
+    rows = store.rows(("watched", "analyzed", "error"))
+    if args.video:
+        rows = [r for r in rows if r["id"] == args.video]
+        if not rows:
+            print(f"Kayıt yok: {args.video}")
+            return 3
+    if not rows:
+        print("Doğrulanacak kayıt yok. Önce `watch` çalıştırın.")
+        return 0
+    results = receipt.verify_all(rows)
+    ok = sum(1 for r in results if r["durum"] == "ok")
+    for r in results:
+        mark = {"ok": "✓", "bozuk": "✗", "yok": "–"}[r["durum"]]
+        print(f"  {mark} {r['video_id']:<14} {r['durum']:<6} {r['not']}")
+        if r["belge_ozeti"]:
+            print(f"      özet: {r['belge_ozeti'][:32]}… · zaman: {r['zaman'] or '?'}")
+    n_bozuk = sum(1 for r in results if r["durum"] == "bozuk")
+    n_yok = sum(1 for r in results if r["durum"] == "yok")
+    print(f"[verify] {ok} doğrulandı, {n_bozuk} bozuk, {n_yok} belgesiz.")
+    return 5 if n_bozuk else 0
 
 
 def cmd_report(_args: argparse.Namespace) -> int:
@@ -324,6 +353,10 @@ def main(argv: list[str] | None = None) -> int:
                       help="daha önce denetlenmiş/hatalı videoları da yeniden denetle")
     _add_vlm_args(p_an)
     p_an.set_defaults(func=cmd_analyze)
+
+    p_ver = sub.add_parser("verify", help="izleme belgelerini doğrula (kanıt bütünlüğü)")
+    p_ver.add_argument("--video", help="yalnızca tek video kimliğini doğrula")
+    p_ver.set_defaults(func=cmd_verify)
 
     p_rep = sub.add_parser("report", help="HTML rapor üret")
     p_rep.set_defaults(func=cmd_report)

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import html
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config
+from . import config, receipt
 
 _SEVERITY = {"güvensiz": 0, "uyumsuz": 0, "şüpheli": 1, "uyumlu": 2, "güvenilir": 2}
 
@@ -100,6 +101,7 @@ def build(rows: list[dict], channel: str = "") -> Path:
         )
         ozet = a.get("ozet") or heu.get("uyum_not") or ""
         vlm_hata = a.get("vlm_hata") or ""
+        belge_html = _belge_html(vid)
 
         cards.append(f"""
     <div class="card">
@@ -125,6 +127,7 @@ def build(rows: list[dict], channel: str = "") -> Path:
           transkript: {'var' if heu.get('transkript_var') else 'yok'}
           {' · ' + html.escape(vlm_hata) if vlm_hata else ''} ·
           <code>{vid}</code></div>
+        {belge_html}
       </div>
     </div>""")
 
@@ -182,6 +185,9 @@ def build(rows: list[dict], channel: str = "") -> Path:
   <div class="sub">{len(rows)} video ({shorts} Shorts) · {stamps} · {now}</div>
   <div class="sub">Başlık↔içerik uyumu anahtarsız sezgisel; gerçeklik skoru
     VLM ile görsel denetimden gelir (yoksa hücre “—” gösterir).</div>
+  <div class="sub">“İzleme” ifadesi izleme belgesiyle desteklenir: kart altındaki özet,
+    <code>python -m denetci verify</code> ile üçüncü taraf olarak doğrulanabilir
+    (belge + karelerin SHA-256 bütünlüğü).</div>
 </header>
 <main>
   <div class="legend">
@@ -203,6 +209,30 @@ def build(rows: list[dict], channel: str = "") -> Path:
 
 def _txt(value) -> str:
     return "—" if value is None else str(value)
+
+
+def _belge_html(vid: str) -> str:
+    """Kartın altına izleme belgesi özetini basar (bozuksa kırmızı uyarır)."""
+    path = config.OUT / vid / receipt.RECEIPT_NAME
+    if not path.exists():
+        return ""
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        doc = None
+    if not isinstance(doc, dict):
+        return (
+            "<div class='meta' style='color:var(--bad)'>"
+            "⚠ İzleme belgesi BOZUK — belirtilen özet güvenilir değil</div>"
+        )
+    iz = doc.get("izleme") or {}
+    oz = str(doc.get("belge_ozeti") or "")[:16]
+    return (
+        f"<div class='meta'>🔎 izleme belgesi · {html.escape(str(iz.get('zaman') or '?'))} · "
+        f"{iz.get('oynanan_saniye', 0)} sn oynandı ({html.escape(str(iz.get('mod') or '?'))}) · "
+        f"özet <code>{html.escape(oz)}…</code> · "
+        f"<code>denetci verify</code> ile doğrulanabilir</div>"
+    )
 
 
 def _verdict_class(karar: str) -> str:

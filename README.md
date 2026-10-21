@@ -121,6 +121,27 @@ python -m denetci login    # açılan pencerede giriş yapın, Enter'a basın
 `data/storage_state.json` sonraki `watch` otomatik kullanır. Analiz için
 zorunlu değildir.
 
+## İzleme belgesi (kanıtlanabilir "izlendi")
+
+İddia/denetim süreçlerinde "bu video izlendi" sözü **belgeyle** desteklenir.
+Her başarılı izlemede `out/<id>/izleme_belgesi.json` yazılır:
+
+- **zaman damgası** (UTC), oynatılan süre / video süresi, mod, çözünürlük
+- her karenin **SHA-256 özeti** + boyut + yakalama anı
+- transkript önbelleğinin SHA-256 özeti
+- belgenin **içerik özeti** (kanonik JSON'un SHA-256'sı)
+
+Üçüncü taraf doğrulama (belge ya da kareler değiştirilirse özet uyuşmaz):
+
+```bash
+python -m denetci verify              # tüm kayıtlar
+python -m denetci verify --video ID   # tek video
+```
+
+Raporun her kartında belge özeti+zamanı, panelde 🔎 rozeti, panelde ayrıca
+**"Belge doğrula"** butonu vardır. Belge, aracın kendi yerel kaydıdır;
+YouTube'da izlenme/etkileşim metriği üretmez/şişirmez.
+
 ## Çıktılar
 
 ```

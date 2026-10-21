@@ -5,4 +5,4 @@ başlık + açıklama + transkript ile "başlık içeriğe uyuyor mu, içerik ge
 sinyalleri üretilir.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0"

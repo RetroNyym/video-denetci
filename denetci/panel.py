@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote
 
-from . import analyzer, collector, config, report, store, watchpage, watcher
+from . import analyzer, collector, config, receipt, report, store, watchpage, watcher
 
 _SETTINGS_FILE = config.DATA / "panel_settings.json"
 
@@ -45,6 +45,7 @@ DEFAULT_SETTINGS: dict = {
 _PHASE_NAMES = {
     "scan": "tarama",
     "watch": "izleme",
+    "verify": "belge doğrulama",
     "analyze": "denetim",
     "report": "rapor",
     "run": "tam akış",
@@ -211,8 +212,30 @@ def _do_watch(st: dict) -> None:
             error=res.get("error", ""),
         )
         JOB.log(f"  {len(res['frames'])} kare · {res.get('duration', 0)} sn · {res['mode']}")
+        belge = receipt.create(row, res)
+        if belge:
+            JOB.log(f"  izleme belgesi: izleme_belgesi.json · özet {belge['ozet'][:16]}…")
         ok += 1
     JOB.log(f"İzleme bitti: {ok} başarılı, {err} hata.")
+
+
+def _do_verify() -> None:
+    rows = store.rows(("watched", "analyzed", "error"))
+    if not rows:
+        JOB.log("Doğrulanacak kayıt yok. Önce `İzleme` çalıştırın.")
+        return
+    results = receipt.verify_all(rows)
+    ok = 0
+    for r in results:
+        mark = {"ok": "✓", "bozuk": "✗", "yok": "–"}[r["durum"]]
+        JOB.log(f"{mark} {r['video_id']} · {r['durum']} · {r['not']}")
+        if r["belge_ozeti"]:
+            JOB.log(f"    özet {r['belge_ozeti'][:24]}… · {r['zaman'] or '?'}")
+        if r["durum"] == "ok":
+            ok += 1
+    n_bozuk = sum(1 for r in results if r["durum"] == "bozuk")
+    n_yok = sum(1 for r in results if r["durum"] == "yok")
+    JOB.log(f"Belge doğrulama: {ok} doğrulandı, {n_bozuk} bozuk, {n_yok} belgesiz.")
 
 
 def _do_analyze(st: dict) -> None:
@@ -320,6 +343,8 @@ def _runner(action: str, st: dict) -> bool:
                 _do_analyze(st)
             if action in ("report", "run"):
                 _do_report()
+            if action == "verify":
+                _do_verify()
             JOB.log("— tamamlandı —")
             JOB.end("bitti")
         except Exception as exc:  # noqa: BLE001 — iş hatası arayüzü düşürmez
@@ -351,6 +376,15 @@ def _videos_payload() -> list[dict]:
                 thumb = f"/out/{r['id']}/kareler/{frames[0].name}"
         a = r.get("analysis") or {}
         s = (a.get("skorlar") or {}) if a else {}
+        belge = ""
+        bp = config.OUT / r["id"] / receipt.RECEIPT_NAME
+        if bp.exists():
+            try:
+                belge = str(
+                    (json.loads(bp.read_text(encoding="utf-8")) or {}).get("belge_ozeti") or ""
+                )[:16]
+            except (OSError, ValueError):
+                belge = "bozuk"
         out.append(
             {
                 "id": r["id"],
@@ -368,6 +402,7 @@ def _videos_payload() -> list[dict]:
                 "karar": (a.get("karar", "") if a else ""),
                 "ozet": (a.get("ozet", "") if a else ""),
                 "vlm_hata": (a.get("vlm_hata", "") if a else ""),
+                "belge": belge,
             }
         )
 
@@ -592,6 +627,7 @@ PANEL_HTML = """<!doctype html>
       <button data-run="watch">▶ İzleme</button>
       <button data-run="analyze">▶ Denetim</button>
       <button data-run="report">📄 Rapor</button>
+      <button data-run="verify">🔎 Belge doğrula</button>
       <button class="warn" data-run="run">⚡ Hepsini çalıştır</button>
       <a href="/reports/latest.html" target="_blank"><button id="openReport" disabled>Raporu aç</button></a>
     </div>
@@ -707,7 +743,8 @@ function renderRows(rows){
     const type=v.is_short?'<span class="type">SHORTS</span>':'<span class="type">VİDEO</span>';
     const status='<span class="st">'+(ST[v.status]||v.status||'')+
       (v.frames?' · '+v.frames+' kare':'')+
-      (v.transcript_lang?' · '+esc(v.transcript_lang):'')+'</span>'+
+      (v.transcript_lang?' · '+esc(v.transcript_lang):'')+
+      (v.belge?' · 🔎 '+esc(v.belge):'')+'</span>'+
       (v.error?'<div class="st bad">'+esc(v.error)+'</div>':'');
     const verdict=v.karar?('<span class="verdict '+verdictClass(v.karar)+'">'+esc(v.karar)+'</span>')
                         :'<span class="st">—</span>';
